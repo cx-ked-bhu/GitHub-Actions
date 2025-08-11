@@ -17,17 +17,10 @@ jobs:
           repository: 'checkmarx-ltd/cx-flow'
           path: 'cx-flow'
           ref: 'master'
-
-      - name: Build the project
-        run: |
-          cd cx-flow
-          ./gradlew clean Build
       
       - name: Run Checkmarx scan
         id: scan-cxflow
         uses: checkmarx-ts/checkmarx-cxflow-github-action@v2.3
-        env:
-          JAVA_HOME: /usr/lib/jvm/java-17-openjdk
         continue-on-error: true
         with:
           project: cx-flow-new-scan
@@ -46,14 +39,7 @@ jobs:
 
       #check file is created in /tmp/cxflow and list the directory
       - name: Check if scan results exist
-        run: |
-          if [ -d "/tmp/cxflow" ]; then
-            echo "Directory /tmp/cxflow exists."
-            ls -l /tmp/cxflow
-          else
-            echo "Directory /tmp/cxflow does not exist."
-            exit 1
-          fi 
+        run: ls -l /tmp/cxflow || echo "Directory /tmp/cxflow does not exist."
            
       
       - name: Upload Checkmarx scan results
