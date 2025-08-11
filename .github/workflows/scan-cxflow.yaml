@@ -1,0 +1,51 @@
+name: Security scan for cx-flow Plugin
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+  # Scheduled scan every monday at 8 AM
+  schedule:
+    - cron: '0 8 * * 1'
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          repository: 'checkmarx-ltd/cx-flow'
+          path: 'cx-flow'
+          ref: 'master'
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v2
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+      
+      - name: Build the project
+        run: |
+          cd cx-flow
+          ./gradlew clean Build
+      
+      - name: Run Checkmarx scan
+        uses: checkmarx-ts/checkmarx-cxflow-github-action@v2.3
+        with:
+          project: cx-flow-new-scan
+          team: ${{ secrets.CHECKMARX_TEAMS }}
+          scanners: sca
+          sca_api_url: ${{ secrets.SCA_API_URL }}
+          sca_app_url: ${{ secrets.SCA_APP_URL }}
+          sca_access_control_url: ${{ secrets.SCA_ACCESS_CONTROL_URL }}
+          sca_tenant: ${{  secrets.SCA_TENANT }}
+          sca_username: ${{ secrets.SCA_USERNAME }}
+          sca_password: ${{ secrets.SCA_PASSWORD }}
+          #--f is the path to the source code from checkout code step
+          params: "--logging.level.com.checkmarx.*=DEBUG --f=./cx-flow"
+      
+      - name: Upload Checkmarx scan results
+        uses: actions/upload-artifact@v2
+        with:
+          name: cx-flow-scan-results 
+          retention-days: 7
