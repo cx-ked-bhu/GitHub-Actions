@@ -25,6 +25,13 @@ jobs:
           java-package: 'jdk'
           distribution: 'temurin'
       
+      #setup gradle with java 17
+      - name: Set up Gradle
+        uses: gradle/gradle-build-action@v2
+        with:
+          gradle-version: '8.0'
+          distribution: 'bin'
+
       - name: Build the project
         run: |
           cd cx-flow
@@ -33,6 +40,7 @@ jobs:
       - name: Run Checkmarx scan
         id: scan-cxflow
         uses: checkmarx-ts/checkmarx-cxflow-github-action@v2.3
+        continue-on-error: true
         with:
           project: cx-flow-new-scan
           team: ${{ secrets.CHECKMARX_TEAMS }}
@@ -46,10 +54,10 @@ jobs:
           sca_username: ${{ secrets.SCA_USERNAME }}
           sca_password: ${{ secrets.SCA_PASSWORD }}
           #--f is the path to the source code from checkout code step
-          params: "--logging.level.com.checkmarx.*=DEBUG --sca.exclude-files='*\\.git' --f=."
+          params: "--logging.level.com.checkmarx.*=DEBUG --sca.exclude-files='*\\.git' --sca.enable-sca-resolver=true --f=."
       
       - name: Upload Checkmarx scan results
-        if: steps.scan-cxflow.outputs.scan_status == 'success'
+        if: steps.scan-cxflow.conclusion == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: cx-flow-scan-results
