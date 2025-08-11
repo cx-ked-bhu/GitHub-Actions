@@ -40,6 +40,8 @@ jobs:
       - name: Run Checkmarx scan
         id: scan-cxflow
         uses: checkmarx-ts/checkmarx-cxflow-github-action@v2.3
+        env:
+          JAVA_HOME: /usr/lib/jvm/java-17-openjdk
         continue-on-error: true
         with:
           project: cx-flow-new-scan
@@ -55,8 +57,6 @@ jobs:
           sca_password: ${{ secrets.SCA_PASSWORD }}
           #--f is the path to the source code from checkout code step
           params: "--logging.level.com.checkmarx.*=DEBUG --sca.exclude-files='*\\.git' --sca.enable-sca-resolver=true --f=."
-          env:
-            JAVA_HOME: /usr/lib/jvm/java-17-openjdk
           run: |
             apk add --no-cache openjdk17
             export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
