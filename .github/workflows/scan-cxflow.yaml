@@ -37,16 +37,7 @@ jobs:
           #--f is the path to the source code from checkout code step
           params: "--logging.level.com.checkmarx.*=DEBUG --sca.enable-sca-resolver=true --f=."
 
-      #check file is created in /tmp/cxflow and list the directory
-      - name: Check if scan results exist
-        run: ls -l /tmp || echo "Directory /tmp does not exist."
-           
-      
-      - name: Upload Checkmarx scan results
-        if: steps.scan-cxflow.conclusion == 'success'
-        uses: actions/upload-artifact@v4
+      - name: upload Sarif file
+        uses: github/codeql-action/upload-sarif@v2
         with:
-          name: cx-flow-scan-results
-          path: |
-           /tmp/cxflow/*
-          retention-days: 7
+          sarif_file: cx.sarif
