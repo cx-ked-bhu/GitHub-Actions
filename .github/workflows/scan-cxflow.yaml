@@ -22,6 +22,7 @@ jobs:
         uses: actions/setup-java@v2
         with:
           java-version: '17'
+          JAVA_HOME: '/usr/lib/jvm/temurin-17-jdk-amd64'
           distribution: 'temurin'
       
       - name: Build the project
@@ -35,7 +36,7 @@ jobs:
           project: cx-flow-new-scan
           team: ${{ secrets.CHECKMARX_TEAMS }}
           scanners: sca
-          bug_tracker: WAIT
+          bug_tracker: JSON
           exclude-files: "*\\.git"
           # Set the environment variables for SCA scan
           sca_api_url: ${{ secrets.SCA_API_URL }}
@@ -52,5 +53,5 @@ jobs:
         with:
           name: cx-flow-scan-results
           path: |
-            cx-flow/build/reports/cxflow-scan-results.json
+            cxflow-scan-results.json
           retention-days: 7
