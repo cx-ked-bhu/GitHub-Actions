@@ -22,7 +22,8 @@ jobs:
         uses: actions/setup-java@v2
         with:
           java-version: '17'
-          JAVA_HOME: '/usr/lib/jvm/temurin-17-jdk-amd64'
+          java-package: 'jdk'
+          cache: 'gradle' 
           distribution: 'temurin'
       
       - name: Build the project
@@ -36,8 +37,7 @@ jobs:
           project: cx-flow-new-scan
           team: ${{ secrets.CHECKMARX_TEAMS }}
           scanners: sca
-          bug_tracker: JSON
-          exclude-files: "*\\.git"
+          bug_tracker: Json
           # Set the environment variables for SCA scan
           sca_api_url: ${{ secrets.SCA_API_URL }}
           sca_app_url: ${{ secrets.SCA_APP_URL }}
@@ -46,7 +46,7 @@ jobs:
           sca_username: ${{ secrets.SCA_USERNAME }}
           sca_password: ${{ secrets.SCA_PASSWORD }}
           #--f is the path to the source code from checkout code step
-          params: "--logging.level.com.checkmarx.*=DEBUG --sca.enable-sca-resolver=true --f=./cx-flow"
+          params: "--logging.level.com.checkmarx.*=DEBUG --sca.exclude-files='*\\.git' --sca.enable-sca-resolver=true --f=./cx-flow"
       
       - name: Upload Checkmarx scan results
         uses: actions/upload-artifact@v4
