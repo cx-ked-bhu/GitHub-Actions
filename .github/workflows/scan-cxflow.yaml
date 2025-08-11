@@ -45,12 +45,12 @@ jobs:
           sca_username: ${{ secrets.SCA_USERNAME }}
           sca_password: ${{ secrets.SCA_PASSWORD }}
           #--f is the path to the source code from checkout code step
-          params: "--logging.level.com.checkmarx.*=DEBUG --sca.exclude-files='*\\.git' --sca.enable-sca-resolver=true --f=./cx-flow"
+          params: "--logging.level.com.checkmarx.*=DEBUG --sca.exclude-files='*\\.git' --sca.enabled-zip-scan=true --f=./cx-flow"
       
       - name: Upload Checkmarx scan results
         uses: actions/upload-artifact@v4
         with:
           name: cx-flow-scan-results
           path: |
-            cxflow-scan-results.json
+            /tmp/cxflow/
           retention-days: 7
