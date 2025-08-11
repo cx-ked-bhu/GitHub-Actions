@@ -55,6 +55,12 @@ jobs:
           sca_password: ${{ secrets.SCA_PASSWORD }}
           #--f is the path to the source code from checkout code step
           params: "--logging.level.com.checkmarx.*=DEBUG --sca.exclude-files='*\\.git' --sca.enable-sca-resolver=true --f=."
+          env:
+            JAVA_HOME: /usr/lib/jvm/java-17-openjdk
+          run: |
+            apk add --no-cache openjdk17
+            export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
+            java -version
       
       - name: Upload Checkmarx scan results
         if: steps.scan-cxflow.conclusion == 'success'
