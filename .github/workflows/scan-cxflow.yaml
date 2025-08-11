@@ -23,7 +23,6 @@ jobs:
         with:
           java-version: '17'
           java-package: 'jdk'
-          cache: 'gradle' 
           distribution: 'temurin'
       
       - name: Build the project
