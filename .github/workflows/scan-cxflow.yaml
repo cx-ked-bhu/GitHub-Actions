@@ -31,6 +31,7 @@ jobs:
           ./gradlew clean Build
       
       - name: Run Checkmarx scan
+        id: scan-cxflow
         uses: checkmarx-ts/checkmarx-cxflow-github-action@v2.3
         with:
           project: cx-flow-new-scan
@@ -45,9 +46,10 @@ jobs:
           sca_username: ${{ secrets.SCA_USERNAME }}
           sca_password: ${{ secrets.SCA_PASSWORD }}
           #--f is the path to the source code from checkout code step
-          params: "--logging.level.com.checkmarx.*=DEBUG --sca.exclude-files='*\\.git' --sca.enabled-zip-scan=true --f=./cx-flow"
+          params: "--logging.level.com.checkmarx.*=DEBUG --sca.exclude-files='*\\.git' --f=."
       
       - name: Upload Checkmarx scan results
+        if: steps.scan-cxflow.outputs.scan_status == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: cx-flow-scan-results
