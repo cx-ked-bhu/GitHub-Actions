@@ -35,6 +35,9 @@ jobs:
           project: cx-flow-new-scan
           team: ${{ secrets.CHECKMARX_TEAMS }}
           scanners: sca
+          bug_tracker: WAIT
+          exclude-files: "*\\.git"
+          # Set the environment variables for SCA scan
           sca_api_url: ${{ secrets.SCA_API_URL }}
           sca_app_url: ${{ secrets.SCA_APP_URL }}
           sca_access_control_url: ${{ secrets.SCA_ACCESS_CONTROL_URL }}
@@ -42,10 +45,12 @@ jobs:
           sca_username: ${{ secrets.SCA_USERNAME }}
           sca_password: ${{ secrets.SCA_PASSWORD }}
           #--f is the path to the source code from checkout code step
-          params: "--logging.level.com.checkmarx.*=DEBUG --f=./cx-flow"
+          params: "--logging.level.com.checkmarx.*=DEBUG --sca.enable-sca-resolver=true --f=./cx-flow"
       
       - name: Upload Checkmarx scan results
         uses: actions/upload-artifact@v4
         with:
-          name: cx-flow-scan-results 
+          name: cx-flow-scan-results
+          path: |
+            cx-flow/build/reports/cxflow-scan-results.json
           retention-days: 7
