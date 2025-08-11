@@ -43,6 +43,18 @@ jobs:
           sca_password: ${{ secrets.SCA_PASSWORD }}
           #--f is the path to the source code from checkout code step
           params: "--logging.level.com.checkmarx.*=DEBUG --sca.exclude-files='*\\.git' --sca.enable-sca-resolver=true --f=."
+
+      #check file is created in /tmp/cxflow and list the directory
+      - name: Check if scan results exist
+        run: |
+          if [ -d "/tmp/cxflow" ]; then
+            echo "Directory /tmp/cxflow exists."
+            ls -l /tmp/cxflow
+          else
+            echo "Directory /tmp/cxflow does not exist."
+            exit 1
+          fi 
+           
       
       - name: Upload Checkmarx scan results
         if: steps.scan-cxflow.conclusion == 'success'
@@ -50,5 +62,5 @@ jobs:
         with:
           name: cx-flow-scan-results
           path: |
-           /tmp/cxflow/*.json
+           /tmp/cxflow/*
           retention-days: 7
