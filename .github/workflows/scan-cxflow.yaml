@@ -35,7 +35,7 @@ jobs:
           sca_username: ${{ secrets.SCA_USERNAME }}
           sca_password: ${{ secrets.SCA_PASSWORD }}
           #--f is the path to the source code from checkout code step
-          params: "--logging.level.com.checkmarx.*=DEBUG --json.data-folder=./scans --json.file-name-format=[PROJECT] --sca.enable-sca-resolver=true --f=."
+          params: "--logging.level.com.checkmarx.*=DEBUG --json.data-folder=./scans --json.file-name-format=[PROJECT].json --sca.enable-sca-resolver=true --f=."
 
       #verify if the file ./cx.sarif is created    
       - name: Check if scan results exist
@@ -47,6 +47,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: scan-results-${{ github.run_number }}
-          path: ./scans/*.json
+          path: ./scans/cx-flow-new-scan.json
           retention-days: 7  
        
