@@ -41,12 +41,12 @@ jobs:
       - name: Check if scan results exist
         run: |
           ls -l  || echo "Directory  does not exist."
-          ls -l /scans || echo "Directory  does not exist."
+          ls -l ./scans || echo "Directory  does not exist."
 
       - name: upload Sarif file
         uses: actions/upload-artifact@v4
         with:
           name: scan-results-${{ github.run_number }}
-          path: ./scans/cx-flow-new-scan.json
+          path: ./scans/*.json
           retention-days: 7  
        
