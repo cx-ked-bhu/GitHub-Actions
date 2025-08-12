@@ -20,7 +20,7 @@ jobs:
       
       - name: Run Checkmarx scan
         id: scan-cxflow
-        uses: checkmarx-ts/checkmarx-cxflow-github-action@v1.5
+        uses: checkmarx-ts/checkmarx-cxflow-github-action@v2.3
         continue-on-error: true
         with:
           project: cx-flow-new-scan
@@ -39,8 +39,8 @@ jobs:
       #verify if the file ./cx.sarif is created    
       - name: Check if scan results exist
         run: ls -l  || echo "Directory  does not exist."
-        
+
       - name: upload Sarif file
-        uses: github/codeql-action/upload-sarif@v2
+        uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: cx.sarif
