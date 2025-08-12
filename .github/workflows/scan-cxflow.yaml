@@ -41,6 +41,8 @@ jobs:
         run: ls -l  || echo "Directory  does not exist."
 
       - name: upload Sarif file
-        uses: github/codeql-action/upload-sarif@v3
+        uses: actions/upload-artifact@v4
         with:
-          sarif_file: cx.sarif
+          name: scan-results-${{ github.run_number }}
+          path: cx.sarif
+        retention-days: 7  
