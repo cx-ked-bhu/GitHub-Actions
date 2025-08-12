@@ -35,16 +35,18 @@ jobs:
           sca_username: ${{ secrets.SCA_USERNAME }}
           sca_password: ${{ secrets.SCA_PASSWORD }}
           #--f is the path to the source code from checkout code step
-          params: "--logging.level.com.checkmarx.*=DEBUG --json.data-folder='.' --sca.enable-sca-resolver=true --f=."
+          params: "--logging.level.com.checkmarx.*=DEBUG  --sca.enable-sca-resolver=true --f=."
 
       #verify if the file ./cx.sarif is created    
       - name: Check if scan results exist
-        run: ls -l  || echo "Directory  does not exist."
+        run: |
+          ls -l  || echo "Directory does not exist."
+          ls -l /tmp || echo "Directory /tmp does not exist."
 
-      - name: upload Sarif file
-        uses: actions/upload-artifact@v4
-        with:
-          name: scan-results-${{ github.run_number }}
-          path: ./*.json
-          retention-days: 7  
+      # - name: upload Sarif file
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: scan-results-${{ github.run_number }}
+      #     path: ./*.json
+      #     retention-days: 7  
        
