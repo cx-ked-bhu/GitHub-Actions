@@ -89,7 +89,7 @@ jobs:
           |----------|-----|---------|-----|
           $VULN_TABLE
           \`\`\`"
-          
+          EOF
               cat > teams-payload.json <<EOF
               {
                 "@type": "MessageCard",
@@ -103,9 +103,8 @@ jobs:
                 }]
               }
               EOF
-          
+
               echo "Sending payload to Teams..."
               curl -v -H "Content-Type: application/json" \
               -d @teams-payload.json \
               "${{ secrets.TEAMS_WEBHOOK_URL }}"
-          
