@@ -37,16 +37,88 @@ jobs:
           #--f is the path to the source code from checkout code step
           params: "--logging.level.com.checkmarx.*=DEBUG --json.data-folder=./scans --json.file-name-format=[PROJECT].json --sca.enable-sca-resolver=true --f=."
 
-      #verify if the file ./cx.sarif is created    
-      - name: Check if scan results exist
-        run: |
-          ls -l  || echo "Directory  does not exist."
-          ls -l ./scans || echo "Directory  does not exist."
 
-      - name: upload Sarif file
+      - name: upload artifact file
         uses: actions/upload-artifact@v4
         with:
           name: scan-results-${{ github.run_number }}
           path: ./scans/cx-flow-new-scan.json
-          retention-days: 7  
-       
+          retention-days: 7
+
+      - name: Check if vulnerabilities exist
+        id: check-vulns
+        run: |
+          CXFLOW_JSON="./scans/cx-flow-new-scan.json" # adjust path
+
+          # 1. Check if file exists and is not empty
+          if [ ! -s "$CXFLOW_JSON" ]; then
+            echo "✅ JSON file missing or empty — skipping notification."
+            echo "send_notification=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # 2. Extract severity counts
+          CRITICAL=$(jq '.scaResults.summary.findingCounts.CRITICAL // 0' "$CXFLOW_JSON")
+          HIGH=$(jq '.scaResults.summary.findingCounts.HIGH // 0' "$CXFLOW_JSON")
+          MEDIUM=$(jq '.scaResults.summary.findingCounts.MEDIUM // 0' "$CXFLOW_JSON")
+          LOW=$(jq '.scaResults.summary.findingCounts.LOW // 0' "$CXFLOW_JSON")
+
+          if [ "$CRITICAL" -eq 0 ] && [ "$HIGH" -eq 0 ] && [ "$MEDIUM" -eq 0 ] && [ "$LOW" -eq 0 ]; then
+            echo "✅ No vulnerabilities found — skipping notification."
+            echo "send_notification=false" >> $GITHUB_OUTPUT
+          else
+            echo "🚨 Vulnerabilities detected."
+            echo "send_notification=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Parse CxFlow JSON and Send to Teams
+        if: steps.check-vulns.outputs.send_notification == 'true'
+        run: |
+          CXFLOW_JSON="./scans/cx-flow-new-scan.json"
+
+          SCAN_ID=$(jq -r '.scaResults.scanId' "$CXFLOW_JSON")
+          WEB_REPORT_LINK=$(jq -r '.scaResults.webReportLink' "$CXFLOW_JSON")
+
+          VULN_SUMMARY=$(jq -r '.scaResults.findings[] |
+            "\(.severity) | \(.cveName) | \(.packageId) | \(.fixResolutionText)"' "$CXFLOW_JSON")
+
+          VULN_SUMMARY_ESCAPED=$(echo "$VULN_SUMMARY" | sed 's/\\/\\\\/g; s/"/\\"/g')
+
+          cat > teams-payload.json <<EOF
+          {
+            "@type": "MessageCard",
+            "@context": "http://schema.org/extensions",
+            "themeColor": "FF6B6B",
+            "summary": "🚨 SCA Vulnerabilities Found",
+            "sections": [{
+              "activityTitle": "🚨 Vulnerabilities Found in Checkmarx SCA Scan",
+              "activitySubtitle": "Scan ID: ${SCAN_ID}",
+              "facts": [{
+                "name": "Scan ID",
+                "value": "${SCAN_ID}"
+              }, {
+                "name": "Web Report Link",
+                "value": "${WEB_REPORT_LINK}"
+              }],
+              "text": "**Vulnerabilities Detected:**\\n\\n\`\`\`\\n${VULN_SUMMARY_ESCAPED}\\n\`\`\`"
+            }],
+            "potentialAction": [{
+              "@type": "OpenUri",
+              "name": "View Web Report",
+              "targets": [{
+                "os": "default",
+                "uri": "${WEB_REPORT_LINK}"
+              }]
+            }]
+          }
+          EOF
+
+          echo "Sending payload to Teams..."
+          if ! curl -s -o /dev/null -w "%{http_code}" -H "Content-Type: application/json" \
+               -d @teams-payload.json \
+               "{{ secrets.TEAMS_WEBHOOK_URL }}" | grep -q "200"; then
+            echo "Failed to send payload to Teams."
+            exit 1
+          fi
+
+          echo "Payload sent successfully."
