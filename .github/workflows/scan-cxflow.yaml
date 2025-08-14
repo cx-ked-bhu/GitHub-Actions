@@ -71,36 +71,97 @@ jobs:
             echo "send_notification=true" >> $GITHUB_OUTPUT
           fi
 
-      - name: Parse CxFlow JSON and Send to Teams
+      - name: Parse CxFlow JSON and Send to Teams (Adaptive Card)
         if: steps.check-vulns.outputs.send_notification == 'true'
         run: |
           CXFLOW_JSON="./scans/cx-flow-new-scan.json"
-      
-          SCAN_ID=$(jq -r '.scaResults.scanId' "$CXFLOW_JSON")
-          WEB_REPORT_LINK=$(jq -r '.scaResults.webReportLink' "$CXFLOW_JSON")
-      
-          VULN_TABLE=$(jq -r '.scaResults.findings[] |
-            "| \(.severity) | \(.cveName) | \(.packageId) | \(.fixResolutionText) |"' "$CXFLOW_JSON")
-      
-          # Add header and separator
-          VULN_TABLE="| Severity | CVE | Package | Fix |\n|---|---|---|---|\n$VULN_TABLE"
-      
+
+          SCAN_ID=$(jq -r '.scaResults.scanId // "N/A"' "$CXFLOW_JSON")
+          WEB_REPORT_LINK=$(jq -r '.scaResults.webReportLink // "N/A"' "$CXFLOW_JSON")
+
+          FINDINGS_JSON=$(jq -c '[.scaResults.findings[]? | {
+            severity: .severity,
+            cve: .cveName,
+            package: .packageId,
+            fix: .fixResolutionText
+          }]' "$CXFLOW_JSON" || echo "[]")
+
+          if [ "$FINDINGS_JSON" = "[]" ]; then
+            FINDINGS_JSON='[{"severity":"-","cve":"No vulnerabilities found","package":"-","fix":"-"}]'
+          fi
+
           cat > teams-payload.json <<EOF
           {
-            "@type": "MessageCard",
-            "@context": "http://schema.org/extensions",
-            "themeColor": "FF6B6B",
-            "summary": "🚨 SCA Vulnerabilities Found",
-            "sections": [{
-              "activityTitle": "🚨 Vulnerabilities Found in Checkmarx SCA Scan",
-              "activitySubtitle": "Scan ID: ${SCAN_ID}",
-              "text": "**Scan ID:** ${SCAN_ID}  \n[View Web Report](${WEB_REPORT_LINK})\n\n${VULN_TABLE}"
-            }]
+            "type": "message",
+            "attachments": [
+              {
+                "contentType": "application/vnd.microsoft.card.adaptive",
+                "content": {
+                  "\$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+                  "type": "AdaptiveCard",
+                  "version": "1.4",
+                  "body": [
+                    {
+                      "type": "TextBlock",
+                      "text": "🚨 Vulnerabilities Found in Checkmarx SCA Scan",
+                      "wrap": true,
+                      "weight": "Bolder",
+                      "size": "Large",
+                      "color": "Attention"
+                    },
+                    {
+                      "type": "TextBlock",
+                      "text": "Scan ID: ${SCAN_ID}",
+                      "wrap": true
+                    },
+                    {
+                      "type": "ActionSet",
+                      "actions": [
+                        {
+                          "type": "Action.OpenUrl",
+                          "title": "View Web Report",
+                          "url": "${WEB_REPORT_LINK}"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "Table",
+                      "columns": [
+                        { "width": 5 },
+                        { "width": 5 },
+                        { "width": 5 },
+                        { "width": 5 }
+                      ],
+                      "rows": [
+                        {
+                          "type": "TableRow",
+                          "cells": [
+                            { "type": "TableCell", "items": [ { "type": "TextBlock", "text": "Severity", "weight": "Bolder", "wrap": true } ] },
+                            { "type": "TableCell", "items": [ { "type": "TextBlock", "text": "CVE", "weight": "Bolder", "wrap": true } ] },
+                            { "type": "TableCell", "items": [ { "type": "TextBlock", "text": "Package", "weight": "Bolder", "wrap": true } ] },
+                            { "type": "TableCell", "items": [ { "type": "TextBlock", "text": "Fix", "weight": "Bolder", "wrap": true } ] }
+                          ]
+                        }
+                        $(echo "$FINDINGS_JSON" | jq -r '.[] |
+                          ",{ \"type\": \"TableRow\", \"cells\": [
+                            { \"type\": \"TableCell\", \"items\": [ { \"type\": \"TextBlock\", \"text\": \"" + (.severity|tostring) + "\", \"wrap\": true } ] },
+                            { \"type\": \"TableCell\", \"items\": [ { \"type\": \"TextBlock\", \"text\": \"" + (.cve|tostring) + "\", \"wrap\": true, \"fontType\": \"Monospace\" } ] },
+                            { \"type\": \"TableCell\", \"items\": [ { \"type\": \"TextBlock\", \"text\": \"" + (.package|tostring) + "\", \"wrap\": true, \"fontType\": \"Monospace\" } ] },
+                            { \"type\": \"TableCell\", \"items\": [ { \"type\": \"TextBlock\", \"text\": \"" + (.fix|tostring) + "\", \"wrap\": true } ] }
+                          ] }"
+                        ')
+                      ]
+                    }
+                  ]
+                }
+              }
+            ]
           }
           EOF
-      
+
           echo "Sending payload to Teams..."
           curl -v -H "Content-Type: application/json" \
           -d @teams-payload.json \
           "${{ secrets.TEAMS_WEBHOOK_URL }}"
-      
+
+          echo "Payload sent successfully."
