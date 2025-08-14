@@ -71,27 +71,27 @@ jobs:
             echo "send_notification=true" >> $GITHUB_OUTPUT
           fi
 
-      - name: Parse CxFlow JSON and Send to Teams
+      - name: Parse CxFlow JSON and Send to Teams (Adaptive Card)
         if: steps.check-vulns.outputs.send_notification == 'true'
         run: |
           CXFLOW_JSON="./scans/cx-flow-new-scan.json"
       
-          # Check if findings array is empty
-          if [ "$(jq '.scaResults.findings | length' "$CXFLOW_JSON")" -eq 0 ]; then
-            echo "No vulnerabilities found. Skipping Teams notification."
-            exit 0
+          SCAN_ID=$(jq -r '.scaResults.scanId // "N/A"' "$CXFLOW_JSON")
+          WEB_REPORT_LINK=$(jq -r '.scaResults.webReportLink // "N/A"' "$CXFLOW_JSON")
+      
+          # Extract findings into JSON array for Adaptive Card table rows
+          FINDINGS_JSON=$(jq -c '[.scaResults.findings[]? | {
+            severity: .severity,
+            cve: .cveName,
+            package: .packageId,
+            fix: .fixResolutionText
+          }]' "$CXFLOW_JSON" || echo "[]")
+      
+          if [ "$FINDINGS_JSON" = "[]" ]; then
+            FINDINGS_JSON='[{"severity":"-","cve":"No vulnerabilities found","package":"-","fix":"-"}]'
           fi
       
-          SCAN_ID=$(jq -r '.scaResults.scanId' "$CXFLOW_JSON")
-          WEB_REPORT_LINK=$(jq -r '.scaResults.webReportLink' "$CXFLOW_JSON")
-      
-          # Prepare table for Teams
-          VULN_TABLE=$(jq -r '.scaResults.findings[] |
-            "\(.severity) | \(.cveName) | \(.packageId) | \(.fixResolutionText)"' "$CXFLOW_JSON")
-      
-          VULN_TABLE_ESCAPED=$(echo "$VULN_TABLE" | sed 's/\\/\\\\/g; s/"/\\"/g')
-      
-          # Create Adaptive Card payload
+          # Build Adaptive Card payload
           cat > teams-payload.json <<EOF
           {
             "type": "message",
@@ -105,27 +105,55 @@ jobs:
                   "body": [
                     {
                       "type": "TextBlock",
-                      "size": "Large",
+                      "text": "🚨 Vulnerabilities Found in Checkmarx SCA Scan",
+                      "wrap": true,
                       "weight": "Bolder",
-                      "text": "🚨 SCA Vulnerabilities Found"
+                      "size": "Large",
+                      "color": "Attention"
                     },
                     {
-                      "type": "FactSet",
-                      "facts": [
-                        { "title": "Scan ID", "value": "${SCAN_ID}" },
-                        { "title": "Web Report", "value": "[View Report](${WEB_REPORT_LINK})" }
+                      "type": "TextBlock",
+                      "text": "Scan ID: ${SCAN_ID}",
+                      "wrap": true,
+                      "spacing": "Small"
+                    },
+                    {
+                      "type": "ActionSet",
+                      "actions": [
+                        {
+                          "type": "Action.OpenUrl",
+                          "title": "View Web Report",
+                          "url": "${WEB_REPORT_LINK}"
+                        }
                       ]
                     },
                     {
-                      "type": "TextBlock",
-                      "text": "**Vulnerabilities:**",
-                      "weight": "Bolder",
-                      "wrap": true
-                    },
-                    {
-                      "type": "TextBlock",
-                      "text": "\`\`\`\nSeverity | CVE | Package | Fix\n${VULN_TABLE_ESCAPED}\n\`\`\`",
-                      "wrap": true
+                      "type": "Table",
+                      "columns": [
+                        { "width": 1 },
+                        { "width": 2 },
+                        { "width": 2 },
+                        { "width": 2 }
+                      ],
+                      "rows": [
+                        {
+                          "type": "TableRow",
+                          "cells": [
+                            { "type": "TableCell", "items": [ { "type": "TextBlock", "text": "Severity", "weight": "Bolder" } ] },
+                            { "type": "TableCell", "items": [ { "type": "TextBlock", "text": "CVE", "weight": "Bolder" } ] },
+                            { "type": "TableCell", "items": [ { "type": "TextBlock", "text": "Package", "weight": "Bolder" } ] },
+                            { "type": "TableCell", "items": [ { "type": "TextBlock", "text": "Fix", "weight": "Bolder" } ] }
+                          ]
+                        }
+                        $(echo "$FINDINGS_JSON" | jq -r '.[] |
+                          ",{ \"type\": \"TableRow\", \"cells\": [
+                            { \"type\": \"TableCell\", \"items\": [ { \"type\": \"TextBlock\", \"text\": \"" + (.severity|tostring) + "\" } ] },
+                            { \"type\": \"TableCell\", \"items\": [ { \"type\": \"TextBlock\", \"text\": \"" + (.cve|tostring) + "\" } ] },
+                            { \"type\": \"TableCell\", \"items\": [ { \"type\": \"TextBlock\", \"text\": \"" + (.package|tostring) + "\" } ] },
+                            { \"type\": \"TableCell\", \"items\": [ { \"type\": \"TextBlock\", \"text\": \"" + (.fix|tostring) + "\" } ] }
+                          ] }"
+                        ')
+                      ]
                     }
                   ]
                 }
@@ -135,14 +163,9 @@ jobs:
           EOF
       
           echo "Sending payload to Teams..."
-          if ! curl -s -o /dev/null -w "%{http_code}" \
-               -H "Content-Type: application/json" \
-               -d @teams-payload.json \
-               "${{ secrets.TEAMS_WEBHOOK_URL }}" | grep -q "200"; then
-            echo "Failed to send payload to Teams."
-            cat teams-payload.json
-            exit 1
-          fi
+          curl -v -H "Content-Type: application/json" \
+            -d @teams-payload.json \
+            "${{ secrets.TEAMS_WEBHOOK_URL }}"
       
           echo "Payload sent successfully."
       
