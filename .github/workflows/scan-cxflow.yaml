@@ -75,23 +75,21 @@ jobs:
         if: steps.check-vulns.outputs.send_notification == 'true'
         run: |
           CXFLOW_JSON="./scans/cx-flow-new-scan.json"
-      
+
           SCAN_ID=$(jq -r '.scaResults.scanId // "N/A"' "$CXFLOW_JSON")
           WEB_REPORT_LINK=$(jq -r '.scaResults.webReportLink // "N/A"' "$CXFLOW_JSON")
-      
-          # Extract findings into JSON array for Adaptive Card table rows
+
           FINDINGS_JSON=$(jq -c '[.scaResults.findings[]? | {
             severity: .severity,
             cve: .cveName,
             package: .packageId,
             fix: .fixResolutionText
           }]' "$CXFLOW_JSON" || echo "[]")
-      
+
           if [ "$FINDINGS_JSON" = "[]" ]; then
             FINDINGS_JSON='[{"severity":"-","cve":"No vulnerabilities found","package":"-","fix":"-"}]'
           fi
-      
-          # Build Adaptive Card payload
+
           cat > teams-payload.json <<EOF
           {
             "type": "message",
@@ -114,8 +112,7 @@ jobs:
                     {
                       "type": "TextBlock",
                       "text": "Scan ID: ${SCAN_ID}",
-                      "wrap": true,
-                      "spacing": "Small"
+                      "wrap": true
                     },
                     {
                       "type": "ActionSet",
@@ -131,26 +128,26 @@ jobs:
                       "type": "Table",
                       "columns": [
                         { "width": 1 },
-                        { "width": 2 },
-                        { "width": 2 },
-                        { "width": 2 }
+                        { "width": 4 },
+                        { "width": 4 },
+                        { "width": 4 }
                       ],
                       "rows": [
                         {
                           "type": "TableRow",
                           "cells": [
-                            { "type": "TableCell", "items": [ { "type": "TextBlock", "text": "Severity", "weight": "Bolder" } ] },
-                            { "type": "TableCell", "items": [ { "type": "TextBlock", "text": "CVE", "weight": "Bolder" } ] },
-                            { "type": "TableCell", "items": [ { "type": "TextBlock", "text": "Package", "weight": "Bolder" } ] },
-                            { "type": "TableCell", "items": [ { "type": "TextBlock", "text": "Fix", "weight": "Bolder" } ] }
+                            { "type": "TableCell", "items": [ { "type": "TextBlock", "text": "Severity", "weight": "Bolder", "wrap": true } ] },
+                            { "type": "TableCell", "items": [ { "type": "TextBlock", "text": "CVE", "weight": "Bolder", "wrap": true } ] },
+                            { "type": "TableCell", "items": [ { "type": "TextBlock", "text": "Package", "weight": "Bolder", "wrap": true } ] },
+                            { "type": "TableCell", "items": [ { "type": "TextBlock", "text": "Fix", "weight": "Bolder", "wrap": true } ] }
                           ]
                         }
                         $(echo "$FINDINGS_JSON" | jq -r '.[] |
                           ",{ \"type\": \"TableRow\", \"cells\": [
-                            { \"type\": \"TableCell\", \"items\": [ { \"type\": \"TextBlock\", \"text\": \"" + (.severity|tostring) + "\" } ] },
-                            { \"type\": \"TableCell\", \"items\": [ { \"type\": \"TextBlock\", \"text\": \"" + (.cve|tostring) + "\" } ] },
-                            { \"type\": \"TableCell\", \"items\": [ { \"type\": \"TextBlock\", \"text\": \"" + (.package|tostring) + "\" } ] },
-                            { \"type\": \"TableCell\", \"items\": [ { \"type\": \"TextBlock\", \"text\": \"" + (.fix|tostring) + "\" } ] }
+                            { \"type\": \"TableCell\", \"items\": [ { \"type\": \"TextBlock\", \"text\": \"" + (.severity|tostring) + "\", \"wrap\": true } ] },
+                            { \"type\": \"TableCell\", \"items\": [ { \"type\": \"TextBlock\", \"text\": \"" + (.cve|tostring) + "\", \"wrap\": true, \"fontType\": \"Monospace\" } ] },
+                            { \"type\": \"TableCell\", \"items\": [ { \"type\": \"TextBlock\", \"text\": \"" + (.package|tostring) + "\", \"wrap\": true, \"fontType\": \"Monospace\" } ] },
+                            { \"type\": \"TableCell\", \"items\": [ { \"type\": \"TextBlock\", \"text\": \"" + (.fix|tostring) + "\", \"wrap\": true } ] }
                           ] }"
                         ')
                       ]
@@ -161,11 +158,12 @@ jobs:
             ]
           }
           EOF
-      
+
           echo "Sending payload to Teams..."
           curl -v -H "Content-Type: application/json" \
-            -d @teams-payload.json \
-            "${{ secrets.TEAMS_WEBHOOK_URL }}"
-      
+          -d @teams-payload.json \
+          "${{ secrets.TEAMS_WEBHOOK_URL }}"
+
           echo "Payload sent successfully."
+
       
