@@ -114,11 +114,9 @@ jobs:
           EOF
 
           echo "Sending payload to Teams..."
-          if ! curl -s -o /dev/null -w "%{http_code}" -H "Content-Type: application/json" \
-               -d @teams-payload.json \
-               "{{ secrets.TEAMS_WEBHOOK_URL }}" | grep -q "200"; then
-            echo "Failed to send payload to Teams."
-            exit 1
-          fi
+          curl -v -H "Content-Type: application/json" \
+          -d @teams-payload.json \
+          "${{ secrets.TEAMS_WEBHOOK_URL }}"
+
 
           echo "Payload sent successfully."
