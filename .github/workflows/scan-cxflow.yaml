@@ -129,7 +129,7 @@ jobs:
                       "columns": [
                         { "width": 5 },
                         { "width": 5 },
-                        { "width": 5 },
+                        { "width": 10 },
                         { "width": 5 }
                       ],
                       "rows": [
